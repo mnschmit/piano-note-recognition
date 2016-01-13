@@ -9,7 +9,7 @@ def midi_matrix(filename, min_pitch=36):
 
     max_tick = max([sum(map(lambda e: e.tick, track)) for track in pattern])
 
-    matrix = np.zeros((84, max_tick))
+    matrix = np.zeros((120 - min_pitch, max_tick))
     for track in pattern:
         last_event_when = 0 # in ticks
         currently_played_notes = set()
