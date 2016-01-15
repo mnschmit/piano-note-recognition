@@ -1,7 +1,7 @@
 import midi
 import numpy as np
 
-def midi_matrix(filename, min_pitch=36):
+def midi_matrix(filename, min_pitch=36, max_pitch=120):
     pattern = midi.read_midifile(filename)
 
     resolution = pattern.resolution
@@ -9,7 +9,8 @@ def midi_matrix(filename, min_pitch=36):
 
     max_tick = max([sum(map(lambda e: e.tick, track)) for track in pattern])
 
-    matrix = np.zeros((120 - min_pitch, max_tick))
+    ## max_pitch should be there as last one ==> +1
+    matrix = np.zeros((1 + max_pitch - min_pitch, max_tick))
     for track in pattern:
         last_event_when = 0 # in ticks
         currently_played_notes = set()
