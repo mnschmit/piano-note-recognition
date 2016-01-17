@@ -1,10 +1,10 @@
 #!/usr/bin/python
 
 usage='''
-Usage: own_midi_comparaison.py filename.wav filename.mid [pitch_max pitch_min]
+Usage: own_midi_comparaison.py filename.wav filename.mid [pitch_min pitch_max filtering]
 
        Mandatory arguments : two files to compare
-       Optional arguments  : pitch_max (biggest pitch considered), pitch_min (smalles pitch considered) 
+       Optional arguments  : pitch_min (smallest pitch considered), pitch_max (biggest pitch considered), filtering (true or false)
 '''
 
 import sys
@@ -20,24 +20,33 @@ filename = sys.argv[1]
 
 midi_filename = sys.argv[2]
 
-pitch_max = note_to_midi('C7')
-if len(sys.argv) > 3:
-    pitch_max = note_to_midi(sys.argv[3])
-
 pitch_min = note_to_midi('C1')
+if len(sys.argv) > 3:
+    pitch_min = note_to_midi(sys.argv[3])
+
+pitch_max = note_to_midi('C7')
 if len(sys.argv) > 4:
-    pitch_min = note_to_midi(sys.argv[4])
+    pitch_max = note_to_midi(sys.argv[4])
 
 pitches = range(pitch_min, pitch_max + 1)
 #pitches = note_to_midi(['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'])
 
-# load an audio file (with samplerate)
+filtering = True
+if len(sys.argv) > 5:
+    if sys.argv[5] == "false":
+        filtering = False 
+    elif sys.argv[4] == "true":
+        filtering = True
+    else: 
+        print "Error reading filtering argument. Assuming true."
+
+### main program ###
 x, sr = load(filename)
 
 # compute normal STFT
 n_components = len(pitches)
 n_fft = 2048
-hop_length = n_fft
+hop_length = n_fft # big hop_length
 X = stft(x, n_fft=n_fft, hop_length=hop_length)
 
 ### midi visualization ###
@@ -55,7 +64,7 @@ index = 0
 for comp in W_zero:
     h = 1
     p = pitches[index]
-    while midi_to_hz(p) < W_zero.shape[1]:
+    while int(midi_to_hz(p)*n_fft/sr) < W_zero.shape[1]:
         for freq in range(int(midi_to_hz(p-threshold)*n_fft/sr), int(midi_to_hz(p+threshold)*n_fft/sr)):
             if freq < W_zero.shape[1]:
                 comp[freq] = 1.0 / h
@@ -64,14 +73,22 @@ for comp in W_zero:
     index += 1
 
 W_zero = W_zero.transpose()
-H_zero = np.random.rand(n_components, V.shape[1])
+H_zero = np.ones((n_components, V.shape[1]))
 
 from NMF import factorize
 comps, acts = factorize(V, W_zero, H_zero)
 
 # filtering activations
-filter_threshold = np.max(acts) / 5
-acts[acts < filter_threshold] = 0
+if filtering:
+    filter_threshold = np.max(acts) / 5
+    
+    for i in range(1, acts.shape[0]):
+        for j in range(0, acts.shape[1]):
+            if acts[i-1][j] > filter_threshold and acts[i-1][j] > acts[i][j]:
+                acts[i-1][j] += acts[i][j]
+                acts[i][j] = 0
+
+    acts[acts < filter_threshold] = 0
 
 # visualisation matters
 import matplotlib.pyplot as plt
