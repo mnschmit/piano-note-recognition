@@ -27,6 +27,7 @@ if len(sys.argv) > 3:
     pitch_max = note_to_midi(sys.argv[3])
 
 pitches = range(pitch_min, pitch_max + 1)
+#pitches = note_to_midi(['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'])
 
 filtering = True
 if len(sys.argv) > 4:
@@ -43,7 +44,7 @@ x, sr = load(filename)
 # compute normal STFT
 n_components = len(pitches)
 n_fft = 2048
-hop_length = n_fft # big hop_length
+hop_length = n_fft * 3 / 4 # big hop_length
 X = stft(x, n_fft=n_fft, hop_length=hop_length)
 
 
@@ -52,16 +53,15 @@ V = np.abs(X)
 
 ## custom initialisation ##
 W_zero = np.zeros((V.shape[0], n_components)).transpose()
-threshold = 0.4
+threshold = 0.1
 index = 0
 for comp in W_zero:
     h = 1
-    p = pitches[index]
-    while int(midi_to_hz(p)*n_fft/sr) < W_zero.shape[1]:
-        for freq in range(int(midi_to_hz(p-threshold)*n_fft/sr), int(midi_to_hz(p+threshold)*n_fft/sr)):
+    fund_freq = midi_to_hz(pitches[index])
+    while int(fund_freq*h*n_fft/sr) < W_zero.shape[1]:
+        for freq in range(int(fund_freq*h*n_fft/sr * (2**(-threshold))), int(fund_freq*h*n_fft/sr * (2**threshold))):
             if freq < W_zero.shape[1]:
                 comp[freq] = 1.0 / h
-        p += 12
         h += 1
     index += 1
 
